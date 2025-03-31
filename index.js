@@ -322,5 +322,11 @@ apiRouter.post('/presale', async (req, res) => {
 app.use('/api', apiRouter);
 
 // Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 API running at http://localhost:${PORT}/api`));
+const PORT = process.env.PORT || 3000;  // Vercel will provide its own PORT
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+}).on('error', (err) => {
+  console.error('Server error:', err);
+  process.exit(1);
+});

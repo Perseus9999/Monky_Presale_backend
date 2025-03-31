@@ -14,9 +14,9 @@
     "start": "node index.js",
     "build": "echo \"Building...\" && exit 0",
     "dev": "nodemon index.js",
-    "vercel-build": "echo \"Vercel build\" && exit 0"
+    "vercel-build": "npm run build"
   },
-  
+
   "engines": {
     "node": ">=18.x"
   }

@@ -89,6 +89,19 @@ async function addStage(pricePerToken, nextPricePerToken, startTime, endTime) {
         throw error;
     }
 }
+async function pauseStage(stageId, isPaused) {
+    try {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        console.log('claim st1::', BSC_CONTRACT_ADDRESS)
+        const tx = await contract.pauseStage(stageId, isPaused);
+        console.log('claim st1::', tx.hash);
+        return tx;
+    } catch (error) {
+        console.error('Error reading pauseStage:', error);
+        throw error;
+    }
+}
 ///////////////////////////////////// Solana Setup /////////////////////////////////////////////////
 // Load environment variables for Solana
 const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
@@ -317,7 +330,23 @@ apiRouter.post('/presale', async (req, res) => {
         res.status(500).json({success: false, error:error.message});
     }
 });
-
+apiRouter.post('/pause', async (req, res) => {
+    try{
+        const {stageId, isPaused} = req.body;
+        console.log('Received Presale info:', {
+            stageId:stageId,
+            isPaused: isPaused
+          });
+          const setPresalePause = await pauseStage(stageId, isPaused);
+          // Process the data as needed (save to DB, etc.)
+          res.json({ 
+            success: true,
+            evmTransationHash: setPresalePause,
+          });
+    } catch (error){
+        res.status(500).json({success: false, error:error.message});
+    }
+});
 // Use "/api/" as the base route
 app.use('/api', apiRouter);
 

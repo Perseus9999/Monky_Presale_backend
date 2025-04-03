@@ -76,12 +76,12 @@ async function claimSucceed(userAddress, claimableAmounts) {
 }
 
 
-async function addStage(pricePerToken, nextPricePerToken, startTime, endTime, isPaused) {
+async function addStage(pricePerToken, nextPricePerToken, startTime, endTime) {
     try {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         console.log('claim st1::', BSC_CONTRACT_ADDRESS)
-        const tx = await contract.addStage(pricePerToken, nextPricePerToken, startTime, endTime, isPaused);
+        const tx = await contract.addStage(pricePerToken, nextPricePerToken, startTime, endTime);
         console.log('claim st1::', tx.hash);
         return tx;
     } catch (error) {
@@ -317,7 +317,7 @@ apiRouter.post('/presale', async (req, res) => {
             end: endTime
           });
         
-          const setPresaleSuccess = await addStage(pricePerToken, nextPricePerToken, startTime, endTime, false);
+          const setPresaleSuccess = await addStage(pricePerToken, nextPricePerToken, startTime, endTime);
           await setPresaleSuccess.wait();
           // Process the data as needed (save to DB, etc.)
           

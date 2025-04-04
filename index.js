@@ -323,7 +323,6 @@ apiRouter.post('/presale', async (req, res) => {
           
           res.json({ 
             success: true,
-            addStage: addStage.toString(),
             evmTransationHash: setPresaleSuccess,
           });
     } catch (error){

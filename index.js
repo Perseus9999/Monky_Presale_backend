@@ -93,12 +93,25 @@ async function pauseStage(stageId, isPaused) {
     try {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        console.log('claim st1::', BSC_CONTRACT_ADDRESS)
+        console.log('claim st1::', BSC_CONTRACT_ADDRESS);
         const tx = await contract.pauseStage(stageId, isPaused);
         console.log('claim st1::', tx.hash);
         return tx;
     } catch (error) {
         console.error('Error reading pauseStage:', error);
+        throw error;
+    }
+}
+
+async function startClaim(time) {
+    try {
+        await new Promise(resolve => setTimeout(resolve, time));
+        console.log('claim st2::', BSC_CONTRACT_ADDRESS);
+        const tx = await contract.startClaim(time);
+        console.log('claim st2::', tx.hash);
+        return tx;
+        } catch (error) {
+        console.error('Error reading startClaim:', error);
         throw error;
     }
 }
@@ -309,8 +322,9 @@ apiRouter.post('/claim', async (req, res) => {
 
 apiRouter.post('/presale', async (req, res) => {
     try{
-        const {pricePerToken, nextPricePerToken, startTime, endTime} = req.body;
+        const {stageNumber, pricePerToken, nextPricePerToken, startTime, endTime} = req.body;
         console.log('Received Presale info:', {
+            stageId: stageNumber,
             current: pricePerToken,
             next: nextPricePerToken,
             start: startTime,
@@ -319,10 +333,16 @@ apiRouter.post('/presale', async (req, res) => {
         
           const setPresaleSuccess = await addStage(pricePerToken, nextPricePerToken, startTime, endTime);
           await setPresaleSuccess.wait();
+          let setStartClaim = 0;
+          if (stageNumber == 8) {
+            setStartClaim = await startStage(stageNumber);
+            await setStartClaim.wait();
+          } else setStartClaim = 0;
           // Process the data as needed (save to DB, etc.)
           
           res.json({ 
             success: true,
+            startClaimTransactionHash: setStartClaim,
             evmTransationHash: setPresaleSuccess,
           });
     } catch (error){

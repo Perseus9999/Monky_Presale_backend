@@ -334,7 +334,7 @@ apiRouter.post('/presale', async (req, res) => {
           const setPresaleSuccess = await addStage(pricePerToken, nextPricePerToken, startTime, endTime);
           await setPresaleSuccess.wait();
           let setStartClaim = 0;
-          if (stageNumber == 8) {
+          if (stageNumber == 7) {
             setStartClaim = await startClaim(endTime);
             await setStartClaim.wait();
           } else setStartClaim = 0;

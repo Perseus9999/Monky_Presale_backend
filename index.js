@@ -335,7 +335,7 @@ apiRouter.post('/presale', async (req, res) => {
           await setPresaleSuccess.wait();
           let setStartClaim = 0;
           if (stageNumber == 8) {
-            setStartClaim = await startStage(stageNumber);
+            setStartClaim = await startClaim(endTime);
             await setStartClaim.wait();
           } else setStartClaim = 0;
           // Process the data as needed (save to DB, etc.)

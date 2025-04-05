@@ -333,16 +333,15 @@ apiRouter.post('/presale', async (req, res) => {
         
           const setPresaleSuccess = await addStage(pricePerToken, nextPricePerToken, startTime, endTime);
           await setPresaleSuccess.wait();
-          let setStartClaim = 0;
+
           if (stageNumber == 7) {
-            setStartClaim = await startClaim(endTime);
+            const setStartClaim = await startClaim(endTime);
             await setStartClaim.wait();
-          } else setStartClaim = 0;
+          } else console.log('Set start claim time is failed.');
           // Process the data as needed (save to DB, etc.)
           
           res.json({ 
             success: true,
-            startClaimTransactionHash: setStartClaim,
             evmTransationHash: setPresaleSuccess,
           });
     } catch (error){

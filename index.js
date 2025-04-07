@@ -159,7 +159,7 @@ async function pauseStage(stageId, isPaused) {
 }
 
 async function startClaim(time) {
-    try {        const tx = await bsc_contract.startClaim(time);
+    try {        
         const [ethStartClaim, bscStartClaim] = await Promise.all([
             eth_contract.startClaim(time),
             bsc_contract.startClaim(time)
@@ -208,57 +208,6 @@ const solanaProvider = new anchor.AnchorProvider(solanaConnection, new anchor.Wa
 anchor.setProvider(solanaProvider);
 const solanaProgram = new anchor.Program(idl, SOLANA_PROGRAM_ID, solanaProvider);
 
-// Function to call `transfer_token()` in Solana program
-// async function relayerTransferTokens(recipientAddress, quantity) {
-
-//     console.log('relayerTransferToken input_parameters::', recipientAddress, quantity);
-
-//     console.log('relayerTransferToken MINT_ACCOUNT::', MINT_ACCOUNT);
-//     console.log('relayerTransferToken PRESALET_PRESALE_TOKEN_ASSOCIATED_TOKEN_ACCOUNT::', PRESALET_PRESALE_TOKEN_ASSOCIATED_TOKEN_ACCOUNT);
-//     console.log('relayerTransferToken PRESALE_INFO::', PRESALE_INFO);
-
-//     const RECIPIENT_PUBKEY = new PublicKey(recipientAddress)
-
-
-//     try {
-//         // Define the accounts required by the function
-//         // const [presale_info, presale_bump] = findProgramAddressSync(
-//         //     [utf8.encode(PRESALE_SEED), PRESALE_AUTHORITY.toBuffer()],
-//         //     program.programId
-//         //   );
-//         // console.log('relayerTransferToken presale_info::', presale_info);
-
-//         const adminBaseAta = getAssociatedTokenAddressSync(MINT_ACCOUNT, RECIPIENT_PUBKEY);
-//         console.log('relayerTransferToken adminBaseAta::', adminBaseAta);
-
-//         const accounts = {
-//             mintAccount: MINT_ACCOUNT, // Replace with the mint account public key
-//             presalePresaleTokenAssociatedTokenAccount: PRESALET_PRESALE_TOKEN_ASSOCIATED_TOKEN_ACCOUNT, // Replace with the presale token account public key
-//             presaleInfo: PRESALE_INFO, // Replace with the presale info public key
-//             toAssociatedTokenAccount: adminBaseAta, // Replace with the recipient's token account public key
-//             recipient: new PublicKey(recipientAddress), // Recipient's wallet address
-//             presaleAuthority: PRESALE_AUTHORITY, // Replace with the presale authority public key
-//             relayer: relayerWallet.publicKey, // Relayer's wallet address
-//             rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-//             systemProgram: anchor.web3.SystemProgram.programId,
-//             tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-//             associatedTokenProgram: anchor.utils.token.ASSOCIATED_TOKEN_PROGRAM_ID,
-//         };
-
-//         // Call the `relayerTransferTokens` function
-//         const tx = await solanaProgram.methods
-//             .relayerTransferTokens(new anchor.BN(quantity))
-//             .accounts(accounts)
-//             .signers([relayerWallet])
-//             .rpc();
-
-//         console.log('Transaction signature:', tx);
-//         return tx;
-//     } catch (error) {
-//         console.error('Error calling relayerTransferTokens:', error);
-//         throw error;
-//     }
-// }
 async function relayerTransferTokens(recipientAddress, quantity) {
     try {
         const RECIPIENT_PUBKEY = new PublicKey(recipientAddress);

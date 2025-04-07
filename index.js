@@ -10,11 +10,10 @@ const { Connection, Keypair, PublicKey, SystemProgram } = require('@solana/web3.
 const { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, getAccount } = require('@solana/spl-token');
 const fs = require('fs');
 const { endianness } = require('os');
-const PresaleAbi = require('./idl/ABI.json');
-const BSC_PresaleAbi = require('./idl/BSC_ABI.json');
+const PresaleAbi = require('./idl/BSC_ABI.json');
 // patch_001 end
-const EVM_OPERATOR = process.env.OPERATOR_KEY;
-const BSC_OPERATOR = process.env.BSC_OPERATOR_KEY;
+
+const OPERATOR = process.env.OPERATOR_KEY;
 const app = express();
 app.use(express.json());
 
@@ -29,27 +28,50 @@ app.use(cors(corsOpts));
 
 ///////////////////////////////////// Ethereum Setup /////////////////////////////////////////////////
 // Load environment variables
-const RPC_URL = process.env.RPC_URL || 'https://1rpc.io/sepolia';
+const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || 'https://1rpc.io/sepolia';
 const BSC_RPC_URL = process.env.BSC_RPC_URL || "wss://bsc-testnet-rpc.publicnode.com";
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
+const ETH_CONTRACT_ADDRESS = process.env.ETH_CONTRACT_ADDRESS;
 const BSC_CONTRACT_ADDRESS = process.env.BSC_CONTRACT_ADDRESS;
 // Setup ethers.js provider & wallet
-const provider = new ethers.JsonRpcProvider(BSC_RPC_URL);
-const wallet = new ethers.Wallet(BSC_OPERATOR, provider);
-const contract = new ethers.Contract(BSC_CONTRACT_ADDRESS, BSC_PresaleAbi, wallet);
+const bsc_provider = new ethers.JsonRpcProvider(BSC_RPC_URL);
+const bsc_wallet = new ethers.Wallet(OPERATOR, bsc_provider);
+const bsc_contract = new ethers.Contract(BSC_CONTRACT_ADDRESS, PresaleAbi, bsc_wallet);
+
+const eth_provider = new ethers.JsonRpcProvider(SEPOLIA_RPC_URL);
+const eth_wallet = new ethers.Wallet(OPERATOR, eth_provider);
+const eth_contract = new ethers.Contract(ETH_CONTRACT_ADDRESS, PresaleAbi, eth_wallet);
 
 // Function to read `getClaimable()` from Ethereum contract
 async function getClaimableAmount(evm_address) {
     try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        console.log('claim st0::', BSC_CONTRACT_ADDRESS)
-        const claimableAmounts = await contract.getClaimableAmount(evm_address);
-        console.log('claim st0::', claimableAmounts)
-        return claimableAmounts;
+        console.log('Fetching claimable amounts for address:', evm_address);
+        console.log('Contract Address:', ETH_CONTRACT_ADDRESS, BSC_CONTRACT_ADDRESS);
+
+        // Execute both contract calls in parallel
+        const [bscClaimable, ethClaimable] = await Promise.all([
+            bsc_contract.getClaimableAmount(evm_address),
+            eth_contract.getClaimableAmount(evm_address)
+        ]);
+
+        console.log('BSC Claimable Amount:', bscClaimable.toString());
+        console.log('ETH Claimable Amount:', ethClaimable.toString());
+
+        // Return both amounts in an object
+        return {
+            bsc: bscClaimable,
+            eth: ethClaimable
+        };
     } catch (error) {
-        console.error('Error reading getClaimable:', error);
-        throw error;
+        console.error('Error in getClaimableAmount:', {
+            error: error.message,
+            stack: error.stack,
+            address: evm_address,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Rethrow with more context
+        throw new Error(`Failed to fetch claimable amounts: ${error.message}`);
     }
 }
 
@@ -61,57 +83,99 @@ async function claimSucceed(userAddress, claimableAmounts) {
             console.log('No claimable tokens for the given address.');
             return;
         }
-
         // Convert claimableAmounts to a mutable array
         const mutableClaimableAmounts = claimableAmounts.map(amount => amount);
 
         // Call the claimSucceed function
-        const tx = await contract.claimSucceed(userAddress, mutableClaimableAmounts);
-        console.log('Transaction sent:', tx.hash);
-        return tx;
+        const [bscResultClaim, ethResultClaim] = await Promise.all ([
+            bsc_contract.claimSucceed(userAddress, mutableClaimableAmounts),
+            eth_contract.claimSucceed(userAddress, mutableClaimableAmounts)
+        ]);
+        return {
+            bsc: bscResultClaim,
+            eth: ethResultClaim
+        };
     } catch (error) {
-        console.error('Error calling claimSucceed:', error);
-        throw error;
+        console.error(
+            'Error in claimSucceed:',
+            {
+                error: error.message,
+                stack: error.stack,
+                userAddress: userAddress,
+                timestamp: new Date().toISOString()
+            }
+        )
+        throw new Error(`Failed to claim tokens: ${error.message}`);
     }
 }
 
 
 async function addStage(pricePerToken, nextPricePerToken, startTime, endTime) {
     try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log('add stage 1::', ETH_CONTRACT_ADDRESS, BSC_CONTRACT_ADDRESS)
+        const [ethAddStage, bscAddStage] = await Promise.all([
+            eth_contract.addStage(pricePerToken, nextPricePerToken, startTime, endTime),
+            bsc_contract.addStage(pricePerToken, nextPricePerToken, startTime, endTime)
+        ]);
+        console.log('add stage 2::', ethAddStage);
+        console.log('add stage 3::', bscAddStage);
 
-        console.log('claim st1::', BSC_CONTRACT_ADDRESS)
-        const tx = await contract.addStage(pricePerToken, nextPricePerToken, startTime, endTime);
-        console.log('claim st1::', tx.hash);
-        return tx;
+        return {
+            eth: ethAddStage,
+            bsc: bscAddStage
+        };
     } catch (error) {
-        console.error('Error reading addStage:', error);
+        console.error('Error writing addStage:',
+            {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            }
+        );
         throw error;
     }
 }
 async function pauseStage(stageId, isPaused) {
     try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        console.log('claim st1::', BSC_CONTRACT_ADDRESS);
-        const tx = await contract.pauseStage(stageId, isPaused);
+        const [ethPauseStage, bscPauseStage] = await Promise.all([
+            eth_contract.pauseStage(stageId, isPaused),
+            bsc_contract.pauseStage(stageId, isPaused)
+        ]);
         console.log('claim st1::', tx.hash);
-        return tx;
+        return {
+            eth: ethPauseStage,
+            bsc: bscPauseStage
+        };
     } catch (error) {
-        console.error('Error reading pauseStage:', error);
+        console.error('Error writing pauseStage:',
+            {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            }
+        );
         throw error;
     }
 }
 
 async function startClaim(time) {
-    try {
-        await new Promise(resolve => setTimeout(resolve, time));
-        console.log('claim st2::', BSC_CONTRACT_ADDRESS);
-        const tx = await contract.startClaim(time);
-        console.log('claim st2::', tx.hash);
-        return tx;
+    try {        const tx = await bsc_contract.startClaim(time);
+        const [ethStartClaim, bscStartClaim] = await Promise.all([
+            eth_contract.startClaim(time),
+            bsc_contract.startClaim(time)
+        ])
+        return {
+            eth: ethStartClaim,
+            bsc: bscStartClaim
+        };
         } catch (error) {
-        console.error('Error reading startClaim:', error);
+        console.error('Error reading startClaim:', 
+            {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            }
+        );
         throw error;
     }
 }
@@ -132,6 +196,8 @@ const idl = require('./idl/monky_sale.json');
 const bs58 = require('bs58');
 const { start } = require('repl');
 const { findProgramAddressSync } = require('@project-serum/anchor/dist/cjs/utils/pubkey');
+const { all } = require('express/lib/application');
+const { promises } = require('dns');
 const relayerWallet = Keypair.fromSecretKey(bs58.decode(RELAYER_KEY));
 
 // Load the IDL (replace with the path to your Solana program IDL)

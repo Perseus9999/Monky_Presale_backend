@@ -28,8 +28,8 @@ app.use(cors(corsOpts));
 
 ///////////////////////////////////// Ethereum Setup /////////////////////////////////////////////////
 // Load environment variables
-const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || 'https://1rpc.io/sepolia';
-const BSC_RPC_URL = process.env.BSC_RPC_URL || "wss://bsc-testnet-rpc.publicnode.com";
+const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
+const BSC_RPC_URL = process.env.BSC_RPC_URL || "https://bsc-testnet-rpc.publicnode.com";
 const ETH_CONTRACT_ADDRESS = process.env.ETH_CONTRACT_ADDRESS;
 const BSC_CONTRACT_ADDRESS = process.env.BSC_CONTRACT_ADDRESS;
 // Setup ethers.js provider & wallet

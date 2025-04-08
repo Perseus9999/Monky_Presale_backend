@@ -316,7 +316,6 @@ apiRouter.post('/claim', async (req, res) => {
     
         // Step 3: set User Claim Info on EVM contract
         if(solanaTx){
-
             const successTx = await claimSucceed(user_evm_address, claimableAmounts);
             await successTx.wait();
             // Return success reponse
@@ -349,16 +348,19 @@ apiRouter.post('/presale', async (req, res) => {
           const setPresaleSuccess = await addStage(pricePerToken, nextPricePerToken, startTime, endTime);
           await setPresaleSuccess.wait();
 
-          if (stageNumber == 7) {
+          if (setPresaleSuccess && stageNumber == 7) {
             const setStartClaim = await startClaim(endTime);
             await setStartClaim.wait();
-          } else console.log('Set start claim time is failed.');
-          // Process the data as needed (save to DB, etc.)
-          
-          res.json({ 
-            success: true,
-            evmTransationHash: setPresaleSuccess,
+            res.json({
+                success:true,
+                evmTransationHash: setPresaleSuccess,
+                transaction: setStartClaim
+            })
+          } else res.json({
+            success:true,
+            evmTransationHash: setPresaleSuccess
           });
+          // Process the data as needed (save to DB, etc.)
     } catch (error){
         res.status(500).json({success: false, error:error.message});
     }
@@ -381,6 +383,7 @@ apiRouter.post('/pause', async (req, res) => {
         res.status(500).json({success: false, error:error.message});
     }
 });
+
 // Use "/api/" as the base route
 app.use('/api', apiRouter);
 

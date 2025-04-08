@@ -355,7 +355,7 @@ apiRouter.post('/presale', async (req, res) => {
                 success:true,
                 evmTransationHash: setPresaleSuccess,
                 transaction: setStartClaim
-            })
+            });
           } else res.json({
             success:true,
             evmTransationHash: setPresaleSuccess

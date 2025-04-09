@@ -112,13 +112,13 @@ async function claimSucceed(userAddress, claimableAmounts) {
 
 async function addStage(pricePerToken, nextPricePerToken, startTime, endTime) {
     try {
-        console.log('add stage 1::', ETH_CONTRACT_ADDRESS, BSC_CONTRACT_ADDRESS)
+        console.log('set stage 1::', ETH_CONTRACT_ADDRESS, BSC_CONTRACT_ADDRESS)
         const [ethAddStage, bscAddStage] = await Promise.all([
             eth_contract.addStage(pricePerToken, nextPricePerToken, startTime, endTime),
             bsc_contract.addStage(pricePerToken, nextPricePerToken, startTime, endTime)
         ]);
-        console.log('add stage 2::', ethAddStage);
-        console.log('add stage 3::', bscAddStage);
+        console.log('set stage 2::', ethAddStage);
+        console.log('set stage 3::', bscAddStage);
 
         return {
             eth: ethAddStage,
@@ -164,6 +164,8 @@ async function startClaim(time) {
             eth_contract.startClaim(time),
             bsc_contract.startClaim(time)
         ])
+        console.log('startClaim ethStartClaim::', ethStartClaim);
+        console.log('startClaim bscStartClaim::', bscStartClaim);
         return {
             eth: ethStartClaim,
             bsc: bscStartClaim
@@ -317,7 +319,6 @@ apiRouter.post('/claim', async (req, res) => {
         // Step 3: set User Claim Info on EVM contract
         if(solanaTx){
             const successTx = await claimSucceed(user_evm_address, claimableAmounts);
-            await successTx.wait();
             // Return success reponse
             res.json({
                 success: true,
@@ -346,20 +347,14 @@ apiRouter.post('/presale', async (req, res) => {
           });
         
           const setPresaleSuccess = await addStage(pricePerToken, nextPricePerToken, startTime, endTime);
-          await setPresaleSuccess.wait();
 
-          if (setPresaleSuccess && stageNumber == 7) {
-            const setStartClaim = await startClaim(endTime);
-            await setStartClaim.wait();
+          const setStartClaim = stageNumber == 7 ? await startClaim(endTime) : await startClaim(0);
             res.json({
                 success:true,
-                evmTransationHash: setPresaleSuccess,
-                transaction: setStartClaim
+                transaction: setStartClaim,
+                evmTransationHash: setPresaleSuccess
             });
-          } else res.json({
-            success:true,
-            evmTransationHash: setPresaleSuccess
-          });
+
           // Process the data as needed (save to DB, etc.)
     } catch (error){
         res.status(500).json({success: false, error:error.message});

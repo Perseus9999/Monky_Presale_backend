@@ -304,12 +304,12 @@ apiRouter.post('/claim', async (req, res) => {
 
         console.log('post_claim claimableAmounts::', claimableAmounts);
 
-        if (!Array.isArray(claimableAmounts)) {
-            res.status(400).json({ success: false, error: 'Invalid data returned from the contract.' });
-            return;
-        }
+        // if (!Array.isArray(claimableAmounts)) {
+        //     res.status(400).json({ success: false, error: 'Invalid data returned from the contract.' });
+        //     return;
+        // }
 
-        const totalClaimableAmount = claimableAmounts.reduce((acc, amount) => acc + BigInt(amount), 0n); 
+        const totalClaimableAmount = [...claimableAmounts.bsc, ...claimableAmounts.eth].reduce((acc, amount) => acc + BigInt(amount), 0n); 
         console.log('post_claim totalClaimableAmount::', totalClaimableAmount);
 
         // Step 2: Call `transfer_token()` in Solana program with the claimable amount
@@ -322,7 +322,7 @@ apiRouter.post('/claim', async (req, res) => {
             // Return success reponse
             res.json({
                 success: true,
-                claimableAmounts: claimableAmounts.toString(),
+                claimableAmounts: claimableAmounts,
                 solanaTransactionHash: solanaTx,
                 evmTransationHash: successTx,
             });

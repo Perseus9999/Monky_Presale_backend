@@ -78,33 +78,40 @@ async function getClaimableAmount(evm_address) {
 // Function to call claimSucceed
 async function claimSucceed(userAddress, claimableAmounts) {
     try {
-        // Check if there are no claimable tokens
-        if (claimableAmounts.every(amount => amount === 0n)) {
+        // Check if there are no claimable tokens across both chains
+        const totalBsc = claimableAmounts.bsc.reduce((sum, amount) => sum + amount, 0n);
+        const totalEth = claimableAmounts.eth.reduce((sum, amount) => sum + amount, 0n);
+        
+        if (totalBsc === 0n && totalEth === 0n) {
             console.log('No claimable tokens for the given address.');
-            return;
+            return { bsc: null, eth: null };
         }
-        // Convert claimableAmounts to a mutable array
-        const mutableClaimableAmounts = claimableAmounts.map(amount => amount);
 
-        // Call the claimSucceed function
-        const [bscResultClaim, ethResultClaim] = await Promise.all ([
-            bsc_contract.claimSucceed(userAddress, mutableClaimableAmounts),
-            eth_contract.claimSucceed(userAddress, mutableClaimableAmounts)
+        // Convert BigInt arrays to regular arrays (if needed)
+        const bscAmounts = claimableAmounts.bsc.map(amount => amount);
+        const ethAmounts = claimableAmounts.eth.map(amount => amount);
+
+        // Call the claimSucceed function for each chain
+        const [bscResultClaim, ethResultClaim] = await Promise.all([
+            totalBsc > 0n ? bsc_contract.claimSucceed(userAddress, bscAmounts) : Promise.resolve(null),
+            totalEth > 0n ? eth_contract.claimSucceed(userAddress, ethAmounts) : Promise.resolve(null)
         ]);
+
         return {
             bsc: bscResultClaim,
             eth: ethResultClaim
         };
     } catch (error) {
-        console.error(
-            'Error in claimSucceed:',
-            {
-                error: error.message,
-                stack: error.stack,
-                userAddress: userAddress,
-                timestamp: new Date().toISOString()
-            }
-        )
+        console.error('Error in claimSucceed:', {
+            error: error.message,
+            stack: error.stack,
+            userAddress: userAddress,
+            claimableAmounts: {
+                bsc: claimableAmounts.bsc.map(a => a.toString()),
+                eth: claimableAmounts.eth.map(a => a.toString())
+            },
+            timestamp: new Date().toISOString()
+        });
         throw new Error(`Failed to claim tokens: ${error.message}`);
     }
 }

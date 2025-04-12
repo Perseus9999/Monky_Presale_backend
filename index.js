@@ -188,6 +188,30 @@ async function startClaim(time) {
         throw error;
     }
 }
+
+async function referrerClaim() {
+    try {        
+        const [ethReferrerClaim, bscReferrerClaim] = await Promise.all([
+            eth_contract.referrerClaim(),
+            bsc_contract.referrerClaim()
+        ])
+        console.log('startClaim ethStartClaim::', ethReferrerClaim);
+        console.log('startClaim bscStartClaim::', bscReferrerClaim);
+        return {
+            eth: ethReferrerClaim,
+            bsc: bscReferrerClaim
+        };
+        } catch (error) {
+        console.error('Error reading startClaim:', 
+            {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            }
+        );
+        throw error;
+    }
+}
 ///////////////////////////////////// Solana Setup /////////////////////////////////////////////////
 // Load environment variables for Solana
 const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
@@ -391,6 +415,18 @@ apiRouter.post('/pause', async (req, res) => {
         res.status(500).json({success: false, error:error.message});
     }
 });
+
+apiRouter.post('/referralClaim', async (req, res) => {
+    try {
+        const referralClaim = await referrerClaim();
+        res.json({
+            success:true,
+            evmTransationHash:referralClaim,
+        });
+    } catch (error) {
+        res.status(500).json({success:false, error:error.message});
+    }
+})
 
 // Use "/api/" as the base route
 app.use('/api', apiRouter);

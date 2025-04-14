@@ -350,6 +350,7 @@ apiRouter.post('/claim', async (req, res) => {
         // Step 3: set User Claim Info on EVM contract
         if(solanaTx){
             const successTx = await claimSucceed(user_evm_address, claimableAmounts);
+            console.log('post_claim successTx', successTx);
             // Return success reponse
             res.json({
                 success: true,
@@ -362,6 +363,7 @@ apiRouter.post('/claim', async (req, res) => {
             res.status(500).json({ success: false, error: 'Solana transaction failed' });
         }
     } catch (error) {
+        console.error('Error in solanaTx_relayerTranferTokens:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

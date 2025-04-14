@@ -354,7 +354,6 @@ apiRouter.post('/claim', async (req, res) => {
             // Return success reponse
             res.json({
                 success: true,
-                claimableAmounts: claimableAmounts,
                 solanaTransactionHash: solanaTx,
                 evmTransationHash: successTx,
             });

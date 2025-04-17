@@ -10,10 +10,25 @@ const { Connection, Keypair, PublicKey, SystemProgram } = require('@solana/web3.
 const { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, getAccount } = require('@solana/spl-token');
 const fs = require('fs');
 const { endianness } = require('os');
+const mongoose = require('mongoose');
+const CryptoJS = require('crypto-js');
 const PresaleAbi = require('./idl/BSC_ABI.json');
 // patch_001 end
 
 const OPERATOR = process.env.OPERATOR_KEY;
+const mongoString = process.env.MONKEYSALE_DB_URL;
+
+mongoose.connect(mongoString);
+const database = mongoose.connection;
+
+database.on('error', (error) => {
+    console.log(error)
+})
+
+database.once('connected', () => {
+    console.log('Database Connected');
+})
+
 const app = express();
 app.use(express.json());
 
@@ -69,7 +84,7 @@ async function getClaimableAmount(evm_address) {
             address: evm_address,
             timestamp: new Date().toISOString()
         });
-        
+
         // Rethrow with more context
         throw new Error(`Failed to fetch claimable amounts: ${error.message}`);
     }
@@ -81,7 +96,7 @@ async function claimSucceed(userAddress, claimableAmounts) {
         // Check if there are no claimable tokens across both chains
         const totalBsc = claimableAmounts.bsc.reduce((sum, amount) => sum + amount, 0n);
         const totalEth = claimableAmounts.eth.reduce((sum, amount) => sum + amount, 0n);
-        
+
         if (totalBsc === 0n && totalEth === 0n) {
             console.log('No claimable tokens for the given address.');
             return { bsc: null, eth: null };
@@ -166,7 +181,7 @@ async function pauseStage(stageId, isPaused) {
 }
 
 async function startClaim(time) {
-    try {        
+    try {
         const [ethStartClaim, bscStartClaim] = await Promise.all([
             eth_contract.startClaim(time),
             bsc_contract.startClaim(time)
@@ -177,8 +192,8 @@ async function startClaim(time) {
             eth: ethStartClaim,
             bsc: bscStartClaim
         };
-        } catch (error) {
-        console.error('Error reading startClaim:', 
+    } catch (error) {
+        console.error('Error reading startClaim:',
             {
                 error: error.message,
                 stack: error.stack,
@@ -190,7 +205,7 @@ async function startClaim(time) {
 }
 
 async function referrerClaim() {
-    try {        
+    try {
         const [ethReferrerClaim, bscReferrerClaim] = await Promise.all([
             eth_contract.referrerClaim(),
             bsc_contract.referrerClaim()
@@ -201,8 +216,8 @@ async function referrerClaim() {
             eth: ethReferrerClaim,
             bsc: bscReferrerClaim
         };
-        } catch (error) {
-        console.error('Error reading startClaim:', 
+    } catch (error) {
+        console.error('Error reading startClaim:',
             {
                 error: error.message,
                 stack: error.stack,
@@ -231,7 +246,27 @@ const { start } = require('repl');
 const { findProgramAddressSync } = require('@project-serum/anchor/dist/cjs/utils/pubkey');
 const { all } = require('express/lib/application');
 const { promises } = require('dns');
+const { referralCodeData } = require('./models/model');
 const relayerWallet = Keypair.fromSecretKey(bs58.decode(RELAYER_KEY));
+
+const normalize = (address) => (address || '').trim().toLowerCase();
+
+const getCodeFromWallets = (evm, solana) => {
+    const LENGTH = 10;
+    const identityKey = `${normalize(evm)}|${normalize(solana)}`;
+    const hash = CryptoJS.SHA256(identityKey).toString(); // hex string
+    console.log('debug hash::', hash)
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+
+    for (let i = 0; i < LENGTH; i++) {
+        const hexPair = hash.substr(i * 2, 2);
+        const index = parseInt(hexPair, 16) % chars.length;
+        code += chars[index];
+    }
+
+    return code;
+};
 
 // Load the IDL (replace with the path to your Solana program IDL)
 // const idl = JSON.parse(fs.readFileSync('./idl/monky_sale.json', 'utf8'));
@@ -244,18 +279,18 @@ const solanaProgram = new anchor.Program(idl, SOLANA_PROGRAM_ID, solanaProvider)
 async function relayerTransferTokens(recipientAddress, quantity) {
     try {
         const RECIPIENT_PUBKEY = new PublicKey(recipientAddress);
-    // Get the toAssociatedTokenAccount
+        // Get the toAssociatedTokenAccount
         const adminBaseAta = getAssociatedTokenAddressSync(MINT_ACCOUNT, RECIPIENT_PUBKEY);
-    // Get the presale Info
+        // Get the presale Info
         const [presaleInfo] = await anchor.web3.PublicKey.findProgramAddressSync(
             [Buffer.from(PRESALE_SEED), PRESALE_AUTHORITY.toBuffer()],
             solanaProgram.programId
-          );
-          console.log('relayerTransferTokens presaleInfo::', presaleInfo.toBase58(), MINT_ACCOUNT, new PublicKey("DecGTmHCn7v7KVSJLe1XYFFxJLX4DQ5xYwtJkDKnEtc5"));
-    // Get the presalePresaleTokenAssociatedTokenAccount
+        );
+        console.log('relayerTransferTokens presaleInfo::', presaleInfo.toBase58(), MINT_ACCOUNT, new PublicKey("DecGTmHCn7v7KVSJLe1XYFFxJLX4DQ5xYwtJkDKnEtc5"));
+        // Get the presalePresaleTokenAssociatedTokenAccount
         const presalePresaleTokenAssociatedTokenAccount = getAssociatedTokenAddressSync(MINT_ACCOUNT, presaleInfo, true);
         console.log('relayerTransferTokens presalePresaleTokenAssociatedTokenAccount::', presalePresaleTokenAssociatedTokenAccount);
-    // Check source token balance
+        // Check source token balance
         const sourceAccount = await getAccount(
             solanaConnection,
             presalePresaleTokenAssociatedTokenAccount
@@ -314,7 +349,118 @@ function isValidSolanaAddress(address) {
 
 apiRouter.get('/', (req, res) => {
     res.send('Hello, World!');
-  });
+});
+
+apiRouter.get('/ref_from_addr', async (req, res) => {
+    const { evm_addr, sol_addr } = req.query;
+
+    const evmAddress = normalize(evm_addr);
+    const solAddress = normalize(sol_addr);
+
+    const filters = {};
+
+    if (evm_addr && isValidEthereumAddress(evm_addr)) {
+        filters.evmAddress = evmAddress;
+    }
+
+    if (sol_addr && isValidSolanaAddress(sol_addr)) {
+        filters.solAddress = solAddress;
+    }
+
+    if (Object.keys(filters).length === 0) {
+        return res.status(400).json({
+            success: false,
+            error: 'At least one valid wallet address (EVM or Solana) must be provided.',
+        });
+    }
+
+    try {
+        const existing = await referralCodeData.findOne(filters);
+
+        if (existing) {
+            return res.json(existing);
+        } else {
+            return res.status(404).json({
+                success: false,
+                message: 'No referral code found for the given address(es).',
+            });
+        }
+    } catch (error) {
+        console.error('Error fetching referral:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+
+apiRouter.get('/ref_from_code', async (req, res) => {
+    const { code } = req.query;
+
+    if (!code || typeof code !== 'string' || code.trim().length === 0) {
+        return res.status(400).json({
+            success: false,
+            error: 'Referral code is required.',
+        });
+    }
+
+    try {
+        const data = await referralCodeData.findOne({ referralCode: code.trim().toUpperCase() });
+
+        if (data) {
+            return res.json(data);
+        } else {
+            return res.status(404).json({
+                success: false,
+                message: 'Referral code not found.',
+            });
+        }
+    } catch (error) {
+        console.error('Error fetching referral by code:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+apiRouter.post('/create_referralcode', async (req, res) => {
+    const { user_evm_address, user_sol_address } = req.body;
+
+    console.log('create_referralcode - body:', user_evm_address, user_sol_address);
+
+    try {
+        if (!isValidEthereumAddress(user_evm_address)) {
+            return res.status(400).json({ success: false, error: 'Invalid EVM address provided.' });
+        }
+
+        if (!isValidSolanaAddress(user_sol_address)) {
+            return res.status(400).json({ success: false, error: 'Invalid Solana address provided.' });
+        }
+
+        const evmAddress = normalize(user_evm_address);
+        const solAddress = normalize(user_sol_address);
+
+        const existing = await referralCodeData.findOne({ evmAddress, solAddress });
+        if (existing) {
+            return res.json(existing);
+        }
+
+        const referralCode = getCodeFromWallets(evmAddress, solAddress);
+
+        const newRecord = await referralCodeData.create({
+            referralCode,
+            evmAddress,
+            solAddress,
+        });
+
+        res.json(newRecord);
+
+    } catch (error) {
+        if (error.code === 11000) {
+            // Handle duplicate key error (MongoDB unique constraint)
+            return res.status(409).json({ success: false, error: 'Referral code already exists for another user.' });
+        }
+
+        console.error('Error creating referral code:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 apiRouter.post('/claim', async (req, res) => {
     try {
@@ -322,7 +468,7 @@ apiRouter.post('/claim', async (req, res) => {
 
         if (!isValidEthereumAddress(user_evm_address)) {
             return res.status(400).json({ success: false, error: 'Invalid evm_address provided.' });
-        } else if (!isValidSolanaAddress(user_sol_address)){
+        } else if (!isValidSolanaAddress(user_sol_address)) {
             return res.status(400).json({ success: false, error: 'Invalid sol_address provided.' });
         }
 
@@ -340,15 +486,15 @@ apiRouter.post('/claim', async (req, res) => {
         //     return;
         // }
 
-        const totalClaimableAmount = [...claimableAmounts.bsc, ...claimableAmounts.eth].reduce((acc, amount) => acc + BigInt(amount), 0n); 
+        const totalClaimableAmount = [...claimableAmounts.bsc, ...claimableAmounts.eth].reduce((acc, amount) => acc + BigInt(amount), 0n);
         console.log('post_claim totalClaimableAmount::', totalClaimableAmount);
 
         // Step 2: Call `transfer_token()` in Solana program with the claimable amount
         const solanaTx = await relayerTransferTokens(user_sol_address, totalClaimableAmount * 1000000n);
         console.log('post_claim solanaTx_relayerTranferTokens', solanaTx);
-    
+
         // Step 3: set User Claim Info on EVM contract
-        if(solanaTx){
+        if (solanaTx) {
             const successTx = await claimSucceed(user_evm_address, claimableAmounts);
             console.log('post_claim successTx', successTx);
             // Return success reponse
@@ -368,52 +514,52 @@ apiRouter.post('/claim', async (req, res) => {
 });
 
 apiRouter.post('/presale', async (req, res) => {
-    try{
-        const {stageNumber, pricePerToken, nextPricePerToken, startTime, endTime} = req.body;
+    try {
+        const { stageNumber, pricePerToken, nextPricePerToken, startTime, endTime } = req.body;
         console.log('Received Presale info:', {
             stageId: stageNumber,
             current: pricePerToken,
             next: nextPricePerToken,
             start: startTime,
             end: endTime
-          });
-        
-          const setPresaleSuccess = await addStage(pricePerToken, nextPricePerToken, startTime, endTime);
+        });
 
-          const setStartClaim = stageNumber == 7 ? await startClaim(endTime) : 0;
-          if (setPresaleSuccess && setStartClaim){
+        const setPresaleSuccess = await addStage(pricePerToken, nextPricePerToken, startTime, endTime);
+
+        const setStartClaim = stageNumber == 7 ? await startClaim(endTime) : 0;
+        if (setPresaleSuccess && setStartClaim) {
             res.json({
-                success:true,
+                success: true,
                 transaction: setStartClaim,
                 evmTransationHash: setPresaleSuccess
             });
-          } else if (setPresaleSuccess && !setStartClaim){
+        } else if (setPresaleSuccess && !setStartClaim) {
             res.json({
-                success:true,
+                success: true,
                 evmTransationHash: setPresaleSuccess
             });
-          } else res.status(500).json({success: false, error:error.message});
-          // Process the data as needed (save to DB, etc.)
-    } catch (error){
-        res.status(500).json({success: false, error:error.message});
+        } else res.status(500).json({ success: false, error: error.message });
+        // Process the data as needed (save to DB, etc.)
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
 apiRouter.post('/pause', async (req, res) => {
-    try{
-        const {stageId, isPaused} = req.body;
+    try {
+        const { stageId, isPaused } = req.body;
         console.log('Received Presale info:', {
-            stageId:stageId,
+            stageId: stageId,
             isPaused: isPaused
-          });
-          const setPresalePause = await pauseStage(stageId, isPaused);
-          // Process the data as needed (save to DB, etc.)
-          res.json({ 
+        });
+        const setPresalePause = await pauseStage(stageId, isPaused);
+        // Process the data as needed (save to DB, etc.)
+        res.json({
             success: true,
             evmTransationHash: setPresalePause,
-          });
-    } catch (error){
-        res.status(500).json({success: false, error:error.message});
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
@@ -421,11 +567,11 @@ apiRouter.post('/referralClaim', async (req, res) => {
     try {
         const referralClaim = await referrerClaim();
         res.json({
-            success:true,
-            evmTransationHash:referralClaim,
+            success: true,
+            evmTransationHash: referralClaim,
         });
     } catch (error) {
-        res.status(500).json({success:false, error:error.message});
+        res.status(500).json({ success: false, error: error.message });
     }
 })
 

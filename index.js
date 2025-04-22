@@ -448,8 +448,8 @@ apiRouter.post('/create_referralcode', async (req, res) => {
 
         const newRecord = await referralCodeData.create({
             referralCode,
-            user_evm_address,
-            user_sol_address,
+            evmAddress: user_evm_address,
+            solAddress: user_sol_address,
         });
 
         res.json(newRecord);

@@ -376,15 +376,18 @@ apiRouter.get('/ref_from_addr', async (req, res) => {
 
     try {
         const existing = await referralCodeData.findOne(filters);
-
-        if (existing) {
-            return res.json(existing);
-        } else {
-            return res.status(404).json({
-                success: false,
-                message: 'No referral code found for the given address(es).',
-            });
-        }
+        return res.json({
+            sucess: true,
+            data: existing || null
+        })
+        // if (existing) {
+        //     return res.json(existing);
+        // } else {
+        //     return res.status(404).json({
+        //         success: false,
+        //         message: 'No referral code found for the given address(es).',
+        //     });
+        // }
     } catch (error) {
         console.error('Error fetching referral:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -490,7 +493,7 @@ apiRouter.post('/claim', async (req, res) => {
         console.log('post_claim totalClaimableAmount::', totalClaimableAmount);
 
         // Step 2: Call `transfer_token()` in Solana program with the claimable amount
-        const solanaTx = await relayerTransferTokens(user_sol_address, totalClaimableAmount * 1000000n);
+        const solanaTx = await relayerTransferTokens(user_sol_address, totalClaimableAmount);
         console.log('post_claim solanaTx_relayerTranferTokens', solanaTx);
 
         // Step 3: set User Claim Info on EVM contract

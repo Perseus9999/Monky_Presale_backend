@@ -233,10 +233,10 @@ const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.
 //const SOLANA_PRIVATE_KEY = process.env.SOLANA_PRIVATE_KEY; // Your Solana wallet's private key
 const SOLANA_PROGRAM_ID = new PublicKey(process.env.SOLANA_PROGRAM_ID); // Replace with your Solana program ID
 const MINT_ACCOUNT = new PublicKey(process.env.MINT_ACCOUNT);
-const PRESALET_PRESALE_TOKEN_ASSOCIATED_TOKEN_ACCOUNT = new PublicKey(process.env.PRESALET_PRESALE_TOKEN_ASSOCIATED_TOKEN_ACCOUNT);
+// const PRESALET_PRESALE_TOKEN_ASSOCIATED_TOKEN_ACCOUNT = new PublicKey(process.env.PRESALET_PRESALE_TOKEN_ASSOCIATED_TOKEN_ACCOUNT);
 const PRESALE_AUTHORITY = new PublicKey(process.env.PRESALE_AUTHORITY);
 const RELAYER_KEY = process.env.RELAYER_KEY;
-const PRESALE_INFO = process.env.PRESALE_INFO;
+// const PRESALE_INFO = process.env.PRESALE_INFO;
 
 // Initialize Solana connection
 const solanaConnection = new Connection(SOLANA_RPC_URL, 'confirmed');
@@ -448,8 +448,8 @@ apiRouter.post('/create_referralcode', async (req, res) => {
 
         const newRecord = await referralCodeData.create({
             referralCode,
-            evmAddress,
-            solAddress,
+            user_evm_address,
+            user_sol_address,
         });
 
         res.json(newRecord);

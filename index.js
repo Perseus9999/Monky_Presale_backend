@@ -33,7 +33,7 @@ const app = express();
 app.use(express.json());
 
 const corsOpts = {
-    origin: '*',
+    origin: ['https://your-frontend-domain.com', 'http://localhost:3001'],
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true

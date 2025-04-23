@@ -360,11 +360,11 @@ apiRouter.get('/ref_from_addr', async (req, res) => {
     const filters = {};
 
     if (evm_addr && isValidEthereumAddress(evm_addr)) {
-        filters.evmAddress = evmAddress;
+        filters.evmAddress = evm_addr;
     }
 
     if (sol_addr && isValidSolanaAddress(sol_addr)) {
-        filters.solAddress = solAddress;
+        filters.solAddress = sol_addr;
     }
 
     if (Object.keys(filters).length === 0) {
